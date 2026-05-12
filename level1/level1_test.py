@@ -32,8 +32,8 @@ class Level1DataDrivenTest(unittest.TestCase):
 		self.wait = None
 		self.errors = []
 
-		self.screenshot_dir = os.path.join(os.path.dirname(__file__), "screenshots")
-		os.makedirs(self.screenshot_dir, exist_ok=True)
+		# self.screenshot_dir = os.path.join(os.path.dirname(__file__), "screenshots")
+		# os.makedirs(self.screenshot_dir, exist_ok=True)
 
 		# Locators from TC001 exports; dynamic IDs were replaced with stable text-based XPath
 		self.loc_login_link = (By.LINK_TEXT, "Log in")
@@ -112,12 +112,12 @@ class Level1DataDrivenTest(unittest.TestCase):
 	def _get_body_text(self):
 		return self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body"))).text
 
-	def _save_screenshot(self, test_id):
-		if not self.driver:
-			return
-		file_name = f"{test_id}_fail.png"
-		file_path = os.path.join(self.screenshot_dir, file_name)
-		self.driver.save_screenshot(file_path)
+	# def _save_screenshot(self, test_id):
+	# 	if not self.driver:
+	# 		return
+	# 	file_name = f"{test_id}_fail.png"
+	# 	file_path = os.path.join(self.screenshot_dir, file_name)
+	# 	self.driver.save_screenshot(file_path)
 
 	# ===== Flow steps =====
 	def _login(self, username, password):
@@ -229,7 +229,7 @@ class Level1DataDrivenTest(unittest.TestCase):
 					print(f"[{test_id}] FAIL")
 					logging.error("Test case failed: %s", test_id)
 					logging.error("%s", traceback.format_exc())
-					self._save_screenshot(test_id)
+					# self._save_screenshot(test_id)
 					self.errors.append(f"{test_id}: {type(exc).__name__} - {exc}")
 				finally:
 					self._stop_driver()

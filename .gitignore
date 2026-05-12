@@ -1,0 +1,10 @@
+# .gitignore for ASS3 — ignore everything except level1
+# Ignore all top-level files and directories
+/*
+
+# Keep this .gitignore file so repo isn't empty
+!.gitignore
+
+# Unignore the level1 directory and all its contents
+!/level1/
+!/level1/**
