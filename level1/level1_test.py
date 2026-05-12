@@ -61,12 +61,25 @@ class Level1DataDrivenTest(unittest.TestCase):
 			"//button[contains(., 'Submit all and finish')]"
 			" | //input[contains(@value, 'Submit all and finish')]",
 		)
+		self.loc_btn_submit_cancel = (
+			By.XPATH,
+			"//div[contains(@class, 'modal') or @role='dialog']"
+			"//button[contains(., 'Cancel')]"
+			" | //div[contains(@class, 'modal') or @role='dialog']"
+			"//input[contains(@value, 'Cancel')]",
+		)
 		self.loc_btn_submit_confirm = (
 			By.XPATH,
 			"//div[contains(@class, 'modal') or @role='dialog']"
 			"//button[contains(., 'Submit all and finish')]"
 			" | //div[contains(@class, 'modal') or @role='dialog']"
 			"//input[contains(@value, 'Submit all and finish')]",
+		)
+		self.loc_btn_finish_review = (
+			By.XPATH,
+			"//button[contains(., 'Finish review')]"
+			" | //input[contains(@value, 'Finish review')]"
+			" | //a[contains(., 'Finish review')]",
 		)
 		self.loc_user_menu = (By.ID, "user-menu-toggle")
 		self.loc_link_logout = (By.LINK_TEXT, "Log out")
@@ -172,7 +185,22 @@ class Level1DataDrivenTest(unittest.TestCase):
 		if remaining:
 			raise AssertionError(f"{label} missing: {', '.join(sorted(remaining))}")
 
-	def _finish_attempt(self):
+	def _get_modal_text(self):
+		modal = self.wait.until(
+			EC.presence_of_element_located(
+				(By.XPATH, "//div[contains(@class, 'modal') or @role='dialog']")
+			)
+		)
+		return modal.text
+
+	def _get_warning_text(self, expected_status):
+		marker = "Questions without a response"
+		if not expected_status or marker not in expected_status:
+			return ""
+		start = expected_status.index(marker)
+		return expected_status[start:].strip()
+
+	def _finish_attempt(self, expected_status, cancel_submit=False):
 		# 6. Next page (Finish attempt)
 		try:
 			self._wait_click(self.loc_btn_next)
@@ -183,10 +211,28 @@ class Level1DataDrivenTest(unittest.TestCase):
 
 		# 8. Submit all and finish (modal confirm if present)
 		self._wait_click(self.loc_btn_submit_all)
-		seen_texts.append(self._get_body_text())
+		modal_text = self._get_modal_text()
+
+		warning_text = self._get_warning_text(expected_status)
+		if warning_text:
+			if warning_text not in modal_text:
+				raise AssertionError(f"Popup warning missing: {warning_text}")
+		elif expected_status and "Answer saved" in expected_status:
+			if "Questions without a response" in modal_text:
+				raise AssertionError("Popup warning should not appear")
+
+		if cancel_submit:
+			self._wait_click(self.loc_btn_submit_cancel)
+			seen_texts.append(self._get_body_text())
+			return seen_texts
+
 		self._try_click(self.loc_btn_submit_confirm, timeout=5)
 		seen_texts.append(self._get_body_text())
 		return seen_texts
+
+	def _finish_review(self):
+		# Return from review page to quiz details if the button is present
+		self._try_click(self.loc_btn_finish_review, timeout=3)
 
 	def _logout(self):
 		# 10. Logout
@@ -204,6 +250,9 @@ class Level1DataDrivenTest(unittest.TestCase):
 				test_id = (row.get("test_id") or "UNKNOWN").strip()
 				expected_status = (row.get("expected_status") or "").strip()
 				expected_score = (row.get("expected_score") or "").strip()
+				cancel_submit = (
+					"summary of attempt" in expected_status.lower() and not expected_score
+				)
 
 				try:
 					logging.info("Start test case: %s", test_id)
@@ -214,12 +263,15 @@ class Level1DataDrivenTest(unittest.TestCase):
 					self._fill_answers(row.get("input_answer", ""))
 
 					# 6-8. Next page, verify status, and finish attempt
-					seen_texts = self._finish_attempt()
+					seen_texts = self._finish_attempt(expected_status, cancel_submit)
 
 					self._verify_expected_parts(expected_status, seen_texts, "Status")
 
 					# 9. Verify score (after submit)
 					self._verify_expected_parts(expected_score, [seen_texts[-1]], "Score")
+
+					if not cancel_submit:
+						self._finish_review()
 
 					# 10. Logout
 					self._logout()
